@@ -1,0 +1,1 @@
+Need to create logic in docker file to download ibapi from their github page and install install
