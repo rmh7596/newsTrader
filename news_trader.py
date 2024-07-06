@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+window_size = (24 * 60) - 15 # 60 mins per hour, 24 hours per day minus 15 since all IB data apparently starts 15 mins late from the hour
+duration = "1 D"
+bar_size = "1 min"
+
 class TradeApp(EWrapper, EClient): 
     def __init__(self): 
         EClient.__init__(self, self)
@@ -21,7 +25,7 @@ class TradeApp(EWrapper, EClient):
         self.openOrders = []
         self.eur_usd_prices = []
         self.gbp_usd_prices = []
-        self.aud_usd = []
+        self.aud_usd_prices = []
 
     @iswrapper
     def nextValidId(self, orderId:int):
@@ -39,8 +43,8 @@ class TradeApp(EWrapper, EClient):
         app.reqHistoricalData(reqId=3,
                           contract=currency_contracts.EurUsd(), 
                           endDateTime="", 
-                          durationStr="1 M", 
-                          barSizeSetting="1 hour", 
+                          durationStr=duration, 
+                          barSizeSetting=bar_size,
                           whatToShow="BID_ASK", 
                           useRTH=0, 
                           formatDate=1, 
@@ -49,8 +53,8 @@ class TradeApp(EWrapper, EClient):
         app.reqHistoricalData(reqId=4,
                           contract=currency_contracts.GbpUsd(), 
                           endDateTime="", 
-                          durationStr="1 M", 
-                          barSizeSetting="1 hour", 
+                          durationStr=duration, 
+                          barSizeSetting=bar_size, 
                           whatToShow="BID_ASK", 
                           useRTH=0, 
                           formatDate=1, 
@@ -59,8 +63,8 @@ class TradeApp(EWrapper, EClient):
         app.reqHistoricalData(reqId=5,
                           contract=currency_contracts.AudUsd(), 
                           endDateTime="", 
-                          durationStr="1 M", 
-                          barSizeSetting="1 hour", 
+                          durationStr=duration, 
+                          barSizeSetting=bar_size, 
                           whatToShow="BID_ASK", 
                           useRTH=0, 
                           formatDate=1, 
@@ -168,28 +172,31 @@ class TradeApp(EWrapper, EClient):
         #         print(order)
         #         self.placeOrder(order.orderId, currency_contracts.EurUsdFx(), order)
         #     time.sleep(5)
-        # self.disconnect()
+        # self.disconnect() # move to the end of the last function being called
 
     def historicalData(self, reqId, bar):
         match reqId:
             case 3:
-                self.eur_usd_prices.append([bar.date, bar.open, bar.close])
-                if len(self.eur_usd_prices) > 527:
-                    df = pd.DataFrame(self.eur_usd_prices)
-                    df.columns=["time", "euroOpen", "euroClose"]
-                    print(df)
+                self.eur_usd_prices.append([bar.date, bar.close])
             case 4:
-                self.gbp_usd_prices.append([bar.date, bar.open, bar.close])
-                if len(self.gbp_usd_prices) > 527:
-                    df = pd.DataFrame(self.gbp_usd_prices)
-                    df.columns=["time", "gbpOpen", "gbpClose"]
-                    print(df)
+                self.gbp_usd_prices.append([bar.date, bar.close])
             case 5:
-                self.aud_usd.append([bar.date, bar.open, bar.close])
-                if len(self.aud_usd) > 527:
-                    df = pd.DataFrame(self.aud_usd)
-                    df.columns=["time", "audOpen", "audClose"]
-                    print(df)
+                self.aud_usd_prices.append([bar.date, bar.close])
+
+        if len(self.eur_usd_prices) > window_size-1 and len(self.gbp_usd_prices) > window_size-1 and len(self.aud_usd_prices) > window_size-1:
+                    eur_df = pd.DataFrame(self.eur_usd_prices)
+                    eur_df.columns=["time","euroClose"]
+
+                    gbp_df = pd.DataFrame(self.gbp_usd_prices)
+                    gbp_df.columns=["time","gbpClose"]
+
+                    aud_df = pd.DataFrame(self.aud_usd_prices)
+                    aud_df.columns=["time", "audClose"]
+                    
+                    eur_df['gbpClose'] = gbp_df['gbpClose']
+                    eur_df['audClose'] = aud_df['audClose']
+                    print(eur_df)
+                    print(eur_df.corr(method="pearson", numeric_only=True))
 
 
 
