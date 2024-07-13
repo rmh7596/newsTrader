@@ -27,9 +27,9 @@ class TradeApp(EWrapper, EClient):
         self.aud_ratio = 0
         self.duration = "1 M"
         self.bar_size = "1 hour"
-        self.dollar_quantity_factor = 10 # 1$ in an order is converted to 1/10 = 0.01 in the quantity field
+        self.dollar_quantity_factor = 100 # 1$ in an order is converted to 1/10 = 0.01 in the quantity field
         self.long_dollar_amount = 10
-        self.long_quantity = self.long_dollar_amount / self.dollar_quantity_factor # 10/10 = quantity of 1
+        self.long_quantity = self.long_dollar_amount / self.dollar_quantity_factor # 10/100 = quantity of 0.1
         self.profit_target = 0.005 # 50 pips
         self.sl_target = 0.0025 # 25 pips
 
@@ -83,6 +83,7 @@ class TradeApp(EWrapper, EClient):
         longParentOrder.action = "BUY"
         longParentOrder.orderType = "MKT"
         longParentOrder.totalQuantity = self.long_quantity
+        longParentOrder.tif = "GTC"
         longParentOrder.transmit = False
         
         longTakeProfit = Order()
@@ -92,6 +93,7 @@ class TradeApp(EWrapper, EClient):
         longTakeProfit.orderType = "LMT"
         longTakeProfit.totalQuantity = self.long_quantity
         longTakeProfit.lmtPrice = self.ask + self.profit_target
+        longTakeProfit.tif = "GTC"
         longTakeProfit.transmit = False
 
         longStopLoss = Order()
@@ -100,6 +102,7 @@ class TradeApp(EWrapper, EClient):
         longStopLoss.action = "SELL"
         longStopLoss.orderType = "STP"
         longStopLoss.totalQuantity = self.long_quantity
+        longStopLoss.tif = "GTC"
         longStopLoss.auxPrice = self.bid - self.sl_target
         # From Docs:
         #In this case, the low side order will be the last child being sent. Therefore, it needs to set this attribute to True 
@@ -120,6 +123,7 @@ class TradeApp(EWrapper, EClient):
         shortParentOrder.action = "SELL"
         shortParentOrder.orderType = "MKT"
         shortParentOrder.totalQuantity = short_gbp_quantity
+        shortParentOrder.tif = "GTC"
         shortParentOrder.transmit = False
         
         shortTakeProfit = Order()
@@ -129,6 +133,7 @@ class TradeApp(EWrapper, EClient):
         shortTakeProfit.orderType = "LMT"
         shortTakeProfit.totalQuantity = short_gbp_quantity
         shortTakeProfit.lmtPrice = self.bid - short_gbp_lmt
+        shortTakeProfit.tif = "GTC"
         shortTakeProfit.transmit = False
 
         shortStopLoss = Order()
@@ -138,6 +143,7 @@ class TradeApp(EWrapper, EClient):
         shortStopLoss.orderType = "STP"
         shortStopLoss.totalQuantity = short_gbp_quantity
         shortStopLoss.auxPrice = self.ask + short_gbp_stop
+        shortStopLoss.tif = "GTC"
         shortStopLoss.transmit = True
 
         orders = [shortParentOrder, shortTakeProfit, shortStopLoss]
@@ -154,6 +160,7 @@ class TradeApp(EWrapper, EClient):
         shortParentOrder.action = "SELL"
         shortParentOrder.orderType = "MKT"
         shortParentOrder.totalQuantity = short_aud_quantity
+        shortParentOrder.tif = "GTC"
         shortParentOrder.transmit = False
         
         shortTakeProfit = Order()
@@ -163,6 +170,7 @@ class TradeApp(EWrapper, EClient):
         shortTakeProfit.orderType = "LMT"
         shortTakeProfit.totalQuantity = short_aud_quantity
         shortTakeProfit.lmtPrice = self.bid - short_aud_lmt
+        shortTakeProfit.tif = "GTC"
         shortTakeProfit.transmit = False
 
         shortStopLoss = Order()
@@ -172,6 +180,7 @@ class TradeApp(EWrapper, EClient):
         shortStopLoss.orderType = "STP"
         shortStopLoss.totalQuantity = short_aud_quantity
         shortStopLoss.auxPrice = self.ask + short_aud_stop
+        shortStopLoss.tif = "GTC"
         shortStopLoss.transmit = True
 
         orders = [shortParentOrder, shortTakeProfit, shortStopLoss]
@@ -235,15 +244,15 @@ class TradeApp(EWrapper, EClient):
             long_orders = self.create_long_order()
             for order in long_orders:
                 print(order)
-                #self.placeOrder(order.orderId, currency_contracts.EurUsd(), order)
+                self.placeOrder(order.orderId, currency_contracts.EurUsd(), order)
             short_gbp_orders = self.create_short_gbp_order()
             for order in short_gbp_orders:
                 print(order)
-                #self.placeOrder(order.orderId, currency_contracts.GbpUsd(), order)
+                self.placeOrder(order.orderId, currency_contracts.GbpUsd(), order)
             short_aud_orders = self.create_short_aud_order()
             for order in short_aud_orders:
                 print(order)
-                #self.placeOrder(order.orderId, currency_contracts.AudUsd(), order)
+                self.placeOrder(order.orderId, currency_contracts.AudUsd(), order)
             time.sleep(5)
             self.disconnect() # move to the end of the last function being called
 
@@ -254,10 +263,19 @@ def timeToBuy():
     get = requests.get("https://calendar-api-v5-calendar-scraper.apps.okd4.csh.rit.edu/nextEventSoon")
     return json.loads(get.text)['buy']
 
-while True:
-    if timeToBuy():
-        app = TradeApp()
-        app.connect("127.0.0.1", 4001, clientId=0)
-        time.sleep(1)
-        app.run()
-    time.sleep(60)
+# while True:
+#     try:
+#         if timeToBuy():
+#             app = TradeApp()
+#             app.connect("127.0.0.1", 4001, clientId=0)
+#             time.sleep(1)
+#             app.run()
+#         time.sleep(60)
+#     except requests.RequestException or requests.ConnectionError or requests.HTTPError:
+#         time.sleep(10)
+#         continue
+
+app = TradeApp()
+app.connect("127.0.0.1", 4001, clientId=0)
+time.sleep(1)
+app.run()
